@@ -11,7 +11,7 @@ docker run -d \
 ```
 
 ```
-docker exec -it 7636438c9218 psql -U myuser -d mydatabase0 -c "
+docker exec -it my-postgres psql -U myuser -d mydatabase0 -c "
 CREATE TABLE users (
     id UUID PRIMARY KEY,
     name TEXT NOT NULL DEFAULT ''
@@ -20,7 +20,7 @@ CREATE TABLE users (
 ```
 
 ```
-docker exec -it my-postgres psql -U myuser -c "CREATE DATABASE mydatabase1;"
+docker exec -it my-postgres psql -U myuser -d postgres -c "CREATE DATABASE mydatabase1;"
 docker exec -it my-postgres psql -U myuser -d mydatabase1 -c "
 CREATE TABLE users (
     id UUID PRIMARY KEY,
@@ -30,7 +30,7 @@ CREATE TABLE users (
 ```
 
 ```
-docker exec -it my-postgres psql -U myuser -c "CREATE DATABASE mydatabase2;"
+docker exec -it my-postgres psql -U myuser -d postgres -c "CREATE DATABASE mydatabase2;"
 docker exec -it my-postgres psql -U myuser -d mydatabase2 -c "
 CREATE TABLE users (
     id UUID PRIMARY KEY,

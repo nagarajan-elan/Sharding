@@ -35,11 +35,13 @@ class ConsistentHashRing:
             clockwise_node_index = 0
 
         ring_key = self.ring[clockwise_node_index]
+        print(f"Selected shard for key {key}: {self.shard_map[ring_key]}")
         return self.shard_map[ring_key]
 
     def get_session(self, key: str):
-        shard_id = 0
-        # shard_id = self.get_shard_id(key)
+        if not isinstance(key, str):
+            key = str(key)
+        shard_id = self.get_shard_id(key)
         engine = self.get_engine(shard_id)
         Session = sessionmaker(bind=engine)
         return Session()
@@ -56,7 +58,7 @@ class ShardRouter:
 
     def setup(self):
         # handle adding or removing shard logic
-        self.ring = ConsistentHashRing([0], 10)
+        self.ring = ConsistentHashRing([0, 1], 10)
 
     def create_record(self, model, data):
         try:
