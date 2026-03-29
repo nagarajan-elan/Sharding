@@ -1,5 +1,7 @@
 import hashlib
 import bisect
+import etcd3
+import json
 from constants import DATABASE_SHARDS
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -53,12 +55,32 @@ class ShardRouter:
     ):
         self.ring: ConsistentHashRing = None
         self.old_ring: ConsistentHashRing = None
-        self.state = None  # migrating, idle
+        self.migration_state = None  # migrating, idle
+        self.etcd_client = etcd3.client(host="localhost", port=2379)
         self.setup()
+
+        # Watch all keys under /myapp/config
+        self.etcd_client.add_watch_callback("/myapp/config/db", self.config_watch)
+
+    def config_watch(self, response):
+        print("DB Config changed.")
+        event_value = None
+        for event in response.events:  # Iterate over events
+            value = json.loads(event.value.decode())
+            event_value = value
+            break
+        
+        self.migration_state = event_value["state"]
+        active_shards = event_value["shards"]
+        self.ring = ConsistentHashRing(active_shards, 10)
 
     def setup(self):
         # handle adding or removing shard logic
-        self.ring = ConsistentHashRing([0, 1], 10)
+        value, _ = self.etcd_client.get("/myapp/config/db")
+        value = json.loads(value.decode())
+        self.migration_state = value["state"]
+        active_shards = value["shards"]
+        self.ring = ConsistentHashRing(active_shards, 10)
 
     def create_record(self, model, data):
         try:

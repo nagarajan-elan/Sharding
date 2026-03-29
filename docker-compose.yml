@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: my-postgres
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydatabase0
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./scripts:/docker-entrypoint-initdb.d
+    restart: always
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.9
+    container_name: etcd-dev
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    command: >
+      /usr/local/bin/etcd
+      --name dev-etcd
+      --data-dir /etcd-data
+      --listen-client-urls http://0.0.0.0:2379
+      --advertise-client-urls http://0.0.0.0:2379
+      --listen-peer-urls http://0.0.0.0:2380
+      --initial-advertise-peer-urls http://0.0.0.0:2380
+      --initial-cluster dev-etcd=http://0.0.0.0:2380
+      --initial-cluster-state new
+    restart: always
