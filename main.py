@@ -14,14 +14,8 @@ def read_root():
 
 @app.post("/users/")
 def create_user(user: User):
-    shard_router.create_record(user)
+    shard_router.create_record(UserDB, user.dict())
     return {"id": user.id}
-
-
-@app.get("/users")
-def list_users():
-    users = shard_router.list_records(UserDB)
-    return users
 
 
 @app.get("/users/{user_id}")
@@ -31,9 +25,9 @@ def get_user(user_id: str):
 
 
 @app.put("/users/{user_id}/")
-def update_user(user: User):
-    shard_router.update_record(UserDB, **user)
-    return {"id": user.id}
+def update_user(user_id: str, user: User):
+    shard_router.update_record(UserDB, user_id, user)
+    return user
 
 
 @app.delete("/users/{user_id}/")

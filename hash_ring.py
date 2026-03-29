@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 class ConsistentHashRing:
-    def __init__(self, nodes, shards):
+    def __init__(self, shards, nodes):
         self._engine_cache = {}
         self.shard_map = {}
         self.ring = []
@@ -38,7 +38,8 @@ class ConsistentHashRing:
         return self.shard_map[ring_key]
 
     def get_session(self, key: str):
-        shard_id = self.get_shard_id(key)
+        shard_id = 0
+        # shard_id = self.get_shard_id(key)
         engine = self.get_engine(shard_id)
         Session = sessionmaker(bind=engine)
         return Session()
@@ -51,14 +52,15 @@ class ShardRouter:
         self.ring: ConsistentHashRing = None
         self.old_ring: ConsistentHashRing = None
         self.state = None  # migrating, idle
+        self.setup()
 
     def setup(self):
         # handle adding or removing shard logic
-        self.ring = ConsistentHashRing()
+        self.ring = ConsistentHashRing([0], 10)
 
     def create_record(self, model, data):
         try:
-            session = self.ring.get_session()
+            session = self.ring.get_session(data["id"])
             record = model(**data)
             session.add(record)
             session.commit()
@@ -69,32 +71,31 @@ class ShardRouter:
 
     def get_record(self, model, id):
         try:
-            session = self.ring.get_session()
+            session = self.ring.get_session(id)
             return session.query(model).filter(model.id == id).first()
         finally:
             session.close()
 
-    def update_record(self, model, record):
+    def update_record(self, model, id, record):
         try:
-            session = self.ring.get_session()
-            id = record.pop("id")
-            session.query(model).filter(model.id == id).update(
-                **record, synchronize_session="fetch"
+            session = self.ring.get_session(id)
+            record = record.model_dump(exclude_unset=True)
+            rows = (
+                session.query(model)
+                .filter(model.id == id)
+                .update(record, synchronize_session=False)
             )
-            session.commit()
-        finally:
-            session.close()
 
-    def list_records(self, model):
-        try:
-            session = self.ring.get_session()
-            return session.query(model).all()
+            if rows == 0:
+                raise ValueError("Matching record not found")
+
+            session.commit()
         finally:
             session.close()
 
     def delete_record(self, model, id):
         try:
-            session = self.ring.get_session()
+            session = self.ring.get_session(id)
             record = session.query(model).filter(model.id == id).first()
             if not record:
                 return False
